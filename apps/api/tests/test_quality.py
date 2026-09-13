@@ -113,9 +113,8 @@ def test_missing_demo_columns_are_not_applicable(quality_db, monkeypatch):
     with engine.begin() as conn:
         conn.execute(text(f'CREATE TABLE "{schema}".customers (id integer PRIMARY KEY)'))
         conn.execute(text(f'INSERT INTO "{schema}".customers VALUES (1)'))
-    demo_rules = rules.demo_rules_for_table('public', 'customers')
-    monkeypatch.setattr(rules, 'demo_rules_for_table', lambda *_: demo_rules)
-    result = run_quality(source, schema, 'customers', connector)
+    configured = [{'column': 'email', 'type': 'email_format'}, {'column': 'state', 'type': 'allowed_values', 'params': {'values': ['AL']}}]
+    result = run_quality(source, schema, 'customers', connector, configured)
     assert result.dimensions['validity'] is None
     assert result.score == 100
     assert all(check.rule not in ['email_format', 'allowed_values'] for check in result.checks)

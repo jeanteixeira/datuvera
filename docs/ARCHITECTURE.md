@@ -9,6 +9,8 @@ flowchart LR
     Source[(Source PostgreSQL)] --> Connector
     Connector --> Profiling
     Profiling --> Quality[Deterministic Quality]
+    MetadataRules[Automatic Metadata Checks] --> Quality
+    ConfiguredRules[(Internal Configured Rules)] --> Quality
     Profiling --> API[FastAPI]
     Quality --> API
     Metadata[(Metadata PostgreSQL)] --- API
@@ -30,3 +32,10 @@ The context excludes raw rows, samples, top values, credentials and check messag
 AI defaults to disabled. Missing configuration does not initialize an SDK client or block startup/core endpoints. Status exposes only availability/provider/model; safe HTTP 503 and 502 distinguish unconfigured AI from provider failure. OpenAI clients have a 30-second timeout, no automatic retries and `store=false`. No real provider calls occur in tests.
 
 New environments use separate named volumes for metadata and demo. Existing volumes can be adopted explicitly through `.env`; see the README. Demo reset replaces only the demo public schema, leaving both volumes and internal metadata intact.
+
+
+DatasetQualityRule stores source_id, schema_name, table_name, column_name, rule_type, JSONB parameters, enabled state and timestamps in the internal database. No persisted Dataset entity is introduced. A source FK cascades on database deletion; there is currently no source DELETE API.
+
+Quality and Insights load enabled rules via QualityRuleService. The engine merges them with existing per-column completeness and PK/UNIQUE checks, deduplicating by type/column tuple and validity parameters. Configured single-column UNIQUE uses normal PostgreSQL NULL semantics; automatic composite checks are preserved. Demo configuration is created explicitly by the source form, not the engine or migration. Resetting the demo public schema does not touch internal rule records.
+
+AI context remains an allowlist of result metadata and aggregated issues; configured parameters are not sent to the provider. Suggestions are not persisted or executed.

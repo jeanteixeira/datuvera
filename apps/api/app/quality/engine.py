@@ -1,4 +1,5 @@
 from typing import List, Optional, Union
+import json
 from app.quality.models import CheckResult, QualityResult
 from app.quality import rules
 from app.profiling.engine import profile_table_from_source
@@ -29,7 +30,8 @@ def run_quality(source, schema: str, table: str, connector,
     validity_checks = []
     pk = connector.get_primary_key_columns(schema, table)
     constraints = ([{'column_names': pk}] if pk else []) + connector.get_unique_constraints(schema, table)
-    configured_rules = rules.demo_rules_for_table(schema, table) if quality_rules is None else quality_rules
+    configured_rules = quality_rules or []
+    seen = {('not_null', (c.name,)) for c in columns}
 
     with connector.engine.connect() as conn:
         for constraint in constraints:
@@ -37,6 +39,10 @@ def run_quality(source, schema: str, table: str, connector,
             if not names or not set(names).issubset(column_names):
                 continue
             nulls_not_distinct = constraint.get('dialect_options', {}).get('postgresql_nulls_not_distinct', False)
+            key = ('unique', tuple(sorted(names)))
+            if key in seen:
+                continue
+            seen.add(key)
             result = rules.evaluate_unique(conn, schema, table, names, nulls_not_distinct)
             invalid, total = result['invalid'], result['total']
             percentage = invalid / total * 100 if total else 0.0
@@ -49,6 +55,24 @@ def run_quality(source, schema: str, table: str, connector,
             rule = rules.QualityRule.model_validate(configured_rule)
             if rule.column not in column_names:
                 continue
+            if rule.rule_type in ('not_null', 'unique'):
+                key = (rule.rule_type, (rule.column,))
+                if key in seen:
+                    continue
+                seen.add(key)
+                col = next(c for c in columns if c.name == rule.column)
+                if rule.rule_type == 'not_null':
+                    completeness_checks.append(_check('not_null', col.null_count, col.null_percentage, column=col.name))
+                else:
+                    result = rules.evaluate_unique(conn, schema, table, [rule.column])
+                    invalid, total = result['invalid'], result['total']
+                    uniqueness_checks.append(_check('unique', invalid, invalid / total * 100 if total else 0.0, column=rule.column,
+                                                    message=f'{invalid} rows belong to duplicate key combinations.' if invalid else None))
+                continue
+            key = (rule.rule_type, rule.column, json.dumps(rule.params, sort_keys=True), rule.value)
+            if key in seen:
+                continue
+            seen.add(key)
             if rule.rule_type == 'email_format':
                 result = rules.evaluate_email_format(conn, schema, table, rule.column)
                 invalid = result['invalid']

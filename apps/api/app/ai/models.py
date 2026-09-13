@@ -2,7 +2,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RiskLevel = Literal['low', 'medium', 'high']
-SupportedRule = Literal['not_null', 'unique', 'email_format', 'allowed_values', 'min_value', 'max_value']
+from app.quality.types import RuleType as SupportedRule
 
 
 class StrictModel(BaseModel):

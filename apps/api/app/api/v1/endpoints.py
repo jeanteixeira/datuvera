@@ -1,3 +1,4 @@
+from app.services.quality_rule_service import QualityRuleService
 from app.ai.config import get_ai_provider
 from app.ai.models import AIInsightRequest, AIInsightResult
 from app.ai.engine import generate_insights
@@ -140,7 +141,7 @@ def run_quality_endpoint(source_id: int, payload: dict = Body(...), db=Depends(g
         raise HTTPException(status_code=400, detail="schema and table are required")
     try:
         connector = Connector(src.host, src.port, src.database, src.username, src.password)
-        res = run_quality(src, schema, table, connector)
+        res = run_quality(src, schema, table, connector, QualityRuleService(db).effective(source_id, schema, table))
         return res.dict()
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to run quality")
@@ -162,7 +163,8 @@ def run_insights(source_id: int, payload: AIInsightRequest, db=Depends(get_db), 
     try:
         profile = profile_table_from_source(source, payload.schema_name, payload.table)
         connector = Connector(source.host, source.port, source.database, source.username, source.password)
-        quality = run_quality(source, payload.schema_name, payload.table, connector)
+        quality = run_quality(source, payload.schema_name, payload.table, connector,
+                              QualityRuleService(db).effective(source_id, payload.schema_name, payload.table))
     except ValueError:
         raise HTTPException(status_code=404, detail="Table not found") from None
     except Exception:

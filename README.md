@@ -17,6 +17,7 @@ Datuvera helps data teams answer these questions through reproducible statistics
 - Column statistics: nulls, cardinality, top values, numeric statistics, string lengths, date ranges and boolean distribution.
 - Deterministic data quality checks and an explainable Quality Score.
 - Web interface, REST API and an included Docker Compose demo.
+- Configurable Quality Rules: create, edit, enable/disable and remove dataset rules.
 - Optional AI Insights: summary, risk, findings and suggested checks through an OpenAI provider.
 
 ## Demo
@@ -68,6 +69,8 @@ flowchart LR
     PG[Source PostgreSQL] --> Connector[PostgreSQL Connector]
     Connector --> Profile[Profiling Engine]
     Profile --> Quality[Deterministic Quality Engine]
+    MetadataRules[Automatic Metadata Checks] --> Quality
+    ConfiguredRules[(Configured User Rules)] --> Quality
     Profile --> API[REST API]
     Quality --> API
     API --> Web[Web UI]
@@ -98,7 +101,11 @@ Profiling computes row/column counts, relation size, per-column null counts and 
 
 Current rules: `not_null`, `unique`, `email_format`, `allowed_values`, `min_value`, `max_value`. Checks return status, affected count/percentage, numerical score and a message where applicable. Missing columns make validity rules non-applicable.
 
-The Quality endpoint currently runs automatic completeness/constraint checks and demo defaults for `public.customers`. Min/max and custom validity rules are supported declaratively by the Python engine; the API does not yet accept custom rule configuration.
+Effective checks combine automatic completeness/PK/UNIQUE checks with enabled user-defined rules stored in the internal database. Identical checks are deduplicated; disabled configured rules remain listed but are not executed (they do not disable automatic checks). Manage rules in **Dataset → Quality Rules**, then rerun Quality. Parameter changes invalidate displayed Quality/AI results.
+
+Rule creation verifies the source/table/column and basic type compatibility. Parameters are empty for not_null/unique/email_format, `{"values":["AL","PE"]}` for allowed_values, or `{"value":0}` for numeric bounds. PATCH permits only parameters and is_enabled.
+
+**Use demo database → Save Source** explicitly creates the email_format and allowed_values rules for the new source. Existing demo sources are not changed by migration: add these two rules through Quality Rules (email/email_format; state/allowed_values: AL, PE, BA, SP, RJ). Without them, validity is not applicable. `make reset-demo` preserves configured rules and source IDs because they live in the internal database. AI suggestions are separate and never create rules automatically.
 
 ## Quality Score
 
@@ -164,6 +171,8 @@ This explicit action sends metadata to OpenAI and consumes API tokens. The norma
 | GET | `/api/v1/sources/{id}/schemas` |
 | GET | `/api/v1/sources/{id}/schemas/{schema}/tables` |
 | POST | `/api/v1/sources/{id}/profile` |
+| GET / POST | `/api/v1/sources/{id}/quality-rules` (optional schema/table filters for GET) |
+| PATCH / DELETE | `/api/v1/sources/{id}/quality-rules/{rule_id}` |
 | POST | `/api/v1/sources/{id}/quality` |
 | POST | `/api/v1/sources/{id}/insights` |
 

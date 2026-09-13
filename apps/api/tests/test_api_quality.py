@@ -20,6 +20,9 @@ def test_quality_endpoint_demo_source():
     assert r.status_code == 200
     src = r.json()
     src_id = src['id']
+    for column, rule, params in [('email', 'email_format', {}), ('state', 'allowed_values', {'values': ['AL','PE','BA','SP','RJ']})]:
+        created = client.post(f'/api/v1/sources/{src_id}/quality-rules', json={'schema':'public','table':'customers','column':column,'rule':rule,'parameters':params})
+        assert created.status_code == 201
 
     pr = client.post(f'/api/v1/sources/{src_id}/quality', json={'schema':'public','table':'customers'})
     assert pr.status_code == 200

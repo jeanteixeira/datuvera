@@ -1,4 +1,5 @@
 "use client"
+import QualityRules from '../../../../../components/QualityRules'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
@@ -169,6 +170,9 @@ export default function DatasetProfilePage() {
           </div>
         </div>
 
+          <QualityRules sourceId={String(id)} schema={String(schema)} table={String(table)} columns={cols} onChanged={() => {
+            setQuality(null); setQualityState('idle'); setInsights(null); setAiState('idle')
+          }} />
           <div className="mt-6">
             <h3 className="font-medium">Data Quality</h3>
             {qualityState === 'idle' && <div className="text-sm text-gray-600">Run quality checks to evaluate dataset.</div>}

@@ -1,29 +1,32 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy import text
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.quality.types import RuleType
+from app.quality.parameters import validate_parameters
 
 
 EMAIL_REGEX = r'^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$'
 
 
 class QualityRule(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
 
     column: str
-    rule_type: Literal['email_format', 'allowed_values', 'min_value', 'max_value'] = Field(alias='type')
+    rule_type: RuleType = Field(alias='type')
     params: Dict[str, Any] = Field(default_factory=dict)
     value: Optional[float] = None
 
-
-def demo_rules_for_table(schema: str, table: str) -> List[QualityRule]:
-    # For demo dataset public.customers
-    if schema == 'public' and table == 'customers':
-        return [
-            QualityRule(column='email', type='email_format'),
-            QualityRule(column='state', type='allowed_values', params={'values': ['AL', 'PE', 'BA', 'SP', 'RJ']}),
-        ]
-    return []
+    @model_validator(mode='after')
+    def check_parameters(self):
+        if self.rule_type in ('min_value', 'max_value'):
+            if self.params:
+                raise ValueError('Bounds use value, not params')
+            validate_parameters(self.rule_type, {'value': self.value})
+        else:
+            if self.value is not None:
+                raise ValueError('This rule does not accept value')
+            validate_parameters(self.rule_type, self.params)
+        return self
 
 
 def evaluate_email_format(conn, schema: str, table: str, column: str) -> Dict[str, Any]:

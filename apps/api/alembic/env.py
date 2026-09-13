@@ -17,6 +17,8 @@ except Exception:
 
 # add your model's MetaData object here
 from app.db.base import Base
+from app.models.datasource import DataSource
+from app.models.quality_rule import DatasetQualityRule
 target_metadata = Base.metadata
 
 

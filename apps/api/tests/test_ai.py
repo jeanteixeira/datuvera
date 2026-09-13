@@ -162,6 +162,7 @@ def fake_endpoint(results, insight_json, monkeypatch):
     monkeypatch.setattr(endpoints.DataSourceService, 'get', lambda *args: source)
     monkeypatch.setattr(endpoints, 'profile_table_from_source', lambda *args: profile)
     monkeypatch.setattr(endpoints, 'run_quality', lambda *args: quality)
+    monkeypatch.setattr(endpoints.QualityRuleService, 'effective', lambda *args: [])
     try:
         yield TestClient(app), provider
     finally:

@@ -1,11 +1,12 @@
 from pydantic import BaseModel, Field
+from app.quality.types import RuleType
 from typing import List, Optional, Any, Dict, Literal
 
 
 class CheckResult(BaseModel):
     column: Optional[str] = None
     columns: Optional[List[str]] = None
-    rule: str
+    rule: RuleType
     status: Literal['passed', 'warning', 'failed']
     passed: bool
     failed_count: int
