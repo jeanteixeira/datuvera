@@ -1,3 +1,7 @@
+from app.ai.config import get_ai_provider
+from app.ai.models import AIInsightRequest, AIInsightResult
+from app.ai.engine import generate_insights
+from app.ai.providers.base import AIProviderError
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.config import settings
 from app.schemas.source import DataSourceCreate, DataSourceRead
@@ -140,3 +144,30 @@ def run_quality_endpoint(source_id: int, payload: dict = Body(...), db=Depends(g
         return res.dict()
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to run quality")
+
+
+@router.get("/ai/status")
+def get_ai_status():
+    from app.ai.config import ai_status
+    return ai_status()
+
+
+@router.post("/sources/{source_id}/insights", response_model=AIInsightResult)
+def run_insights(source_id: int, payload: AIInsightRequest, db=Depends(get_db), provider=Depends(get_ai_provider)):
+    if provider is None:
+        raise HTTPException(status_code=503, detail="AI Insights is not configured.")
+    source = DataSourceService(db).get(source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        profile = profile_table_from_source(source, payload.schema_name, payload.table)
+        connector = Connector(source.host, source.port, source.database, source.username, source.password)
+        quality = run_quality(source, payload.schema_name, payload.table, connector)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Table not found") from None
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to prepare dataset insights") from None
+    try:
+        return generate_insights(profile, quality, provider)
+    except AIProviderError:
+        raise HTTPException(status_code=502, detail="AI provider failed to generate valid insights.") from None

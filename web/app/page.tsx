@@ -14,7 +14,7 @@ export default function Home() {
         <div><h2 className="font-semibold">Connect</h2><p>Connect your PostgreSQL data source, or start with the included demo.</p></div>
         <div><h2 className="font-semibold">Profile</h2><p>Understand schema, nulls, cardinality and distributions.</p></div>
         <div><h2 className="font-semibold">Assess Quality</h2><p>Run deterministic checks and calculate explainable quality scores. No LLM required.</p></div>
-        <div><h2 className="font-semibold">AI Insights</h2><p>Coming next. Planned assistance built on profiling and quality results.</p></div>
+        <div><h2 className="font-semibold">AI Insights</h2><p>Optional AI interpretation of profiling and quality results. Configure a provider to generate insights; no LLM is needed for the core.</p></div>
       </section>
     </main>
   )

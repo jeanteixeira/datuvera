@@ -8,7 +8,7 @@ An open-source, self-hosted, API-first data profiling and quality platform for m
 
 What is in this dataset? Can I trust it? Where are the quality problems?
 
-Datuvera helps data teams answer these questions through reproducible statistics and deterministic checks. Core profiling and quality checks do not require an LLM. AI-enhanced insights are planned, not implemented.
+Datuvera helps data teams answer these questions through reproducible statistics and deterministic checks. Core profiling and quality checks do not require an LLM. Optional AI Insights interpret structured profiling and quality results without changing deterministic checks or scores.
 
 ## Features
 
@@ -17,6 +17,7 @@ Datuvera helps data teams answer these questions through reproducible statistics
 - Column statistics: nulls, cardinality, top values, numeric statistics, string lengths, date ranges and boolean distribution.
 - Deterministic data quality checks and an explainable Quality Score.
 - Web interface, REST API and an included Docker Compose demo.
+- Optional AI Insights: summary, risk, findings and suggested checks through an OpenAI provider.
 
 ## Demo
 
@@ -71,6 +72,11 @@ flowchart LR
     Quality --> API
     API --> Web[Web UI]
     Metadata[(Internal PostgreSQL)] --- API
+    Profile -.-> Context[Allowlisted Structured Context]
+    Quality -.-> Context
+    Context -. Optional .-> AI[AI Insight Engine]
+    AI --> Provider[OpenAI Provider]
+    AI --> API
 ```
 
 - `apps/api/`: Python 3.12, FastAPI, Pydantic v2, SQLAlchemy, psycopg v3, Alembic and pytest.
@@ -78,7 +84,7 @@ flowchart LR
 - `docker/`: PostgreSQL seed scripts; Compose runs internal DB, demo DB, API and web.
 - `docs/`: architecture and tracked technical debt.
 
-AI Insights will consume profiling/quality results in a future stage.
+AI Insights is an optional interpretation layer. Profiling and Quality remain independent of the provider.
 
 ## Data Profiling
 
@@ -114,12 +120,43 @@ Severity is separate:
 
 **Severity does not determine the numerical score.** A check with 2% failures scores 98/warning; 10% failures scores 90/failed.
 
+## AI Insights (optional)
+
+AI Insights are optional. Core profiling and quality checks remain deterministic and require no LLM or API key. The fresh-clone demo works with AI disabled.
+
+To enable OpenAI interpretation, set these values in your local `.env`:
+
+```dotenv
+DATUVERA_AI_ENABLED=true
+OPENAI_API_KEY=<your key>
+DATUVERA_AI_MODEL=gpt-5.4-mini
+```
+
+Run `make up` to recreate the API with the updated environment. Open a dataset and select **Generate AI Insights**. The default uses OpenAI's Responses API with Pydantic Structured Outputs; the model is configurable.
+
+Only allowlisted metadata, percentages, numeric aggregates and deterministic issues are sent. Raw rows, row samples, `top_values`, source credentials and check messages are excluded. Schema/table/column names are included, so review whether your metadata is suitable for an external provider. Responses are requested with `store=false`.
+
+AI returns a short summary, low/medium/high risk, up to five findings and up to five suggested checks. Suggestions are advice only: they are not executed, saved or applied automatically. Numerical Quality Scores and check statuses always come from the deterministic engine. Model recommendations still need your review.
+
+`GET /api/v1/ai/status` reports availability without exposing a key. Missing configuration yields HTTP 503 for insights; provider failure or invalid/refused/incomplete output yields a safe HTTP 502. The UI distinguishes unavailable AI from generation failure.
+
+For a manual real-provider test, enable the configuration above, then use the UI or:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/sources/<source-id>/insights \
+  -H 'Content-Type: application/json' \
+  -d '{"schema":"public","table":"customers"}'
+```
+
+This explicit action sends metadata to OpenAI and consumes API tokens. The normal test suite uses fake/mock providers and never calls OpenAI.
+
 ## API
 
 | Method | Path |
 |---|---|
 | GET | `/health` |
 | GET | `/api/v1/info` |
+| GET | `/api/v1/ai/status` |
 | POST / GET | `/api/v1/sources` |
 | GET | `/api/v1/sources/{id}` |
 | POST | `/api/v1/sources/test` |
@@ -128,6 +165,7 @@ Severity is separate:
 | GET | `/api/v1/sources/{id}/schemas/{schema}/tables` |
 | POST | `/api/v1/sources/{id}/profile` |
 | POST | `/api/v1/sources/{id}/quality` |
+| POST | `/api/v1/sources/{id}/insights` |
 
 Profile and quality requests use `{"schema": "public", "table": "customers"}`. Source responses omit passwords. Full request/response documentation: [Swagger UI](http://localhost:8000/docs).
 
@@ -175,7 +213,7 @@ The example credentials are for local use only. `API_URL` is the web server's AP
 - [x] Dataset discovery
 - [x] Profiling Engine
 - [x] Quality Engine
-- [ ] AI Insights
+- [x] Optional AI Insights
 - [ ] CSV / Parquet
 - [ ] S3 / MinIO
 - [ ] Additional connectors

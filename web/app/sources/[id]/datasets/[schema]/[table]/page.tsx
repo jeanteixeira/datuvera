@@ -2,6 +2,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
+type AIInsightResult = {
+  summary: string
+  risk_level: 'low' | 'medium' | 'high'
+  findings: { severity: string; title: string; description: string; column: string | null }[]
+  suggested_checks: { column: string; rule: string; reason: string; parameters: { value: number | null; values: string[] | null } }[]
+}
+
 export default function DatasetProfilePage() {
   const params = useParams()
   const router = useRouter()
@@ -12,8 +19,21 @@ export default function DatasetProfilePage() {
   const [profile, setProfile] = useState<any>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  const [aiAvailable, setAiAvailable] = useState<boolean | null>(null)
+  const [aiState, setAiState] = useState<'idle'|'running'|'success'|'error'|'unavailable'>('idle')
+  const [insights, setInsights] = useState<AIInsightResult | null>(null)
+
+  useEffect(() => {
+    fetch('/api/v1/ai/status')
+      .then(res => { if (!res.ok) throw new Error('Status unavailable'); return res.json() })
+      .then(status => setAiAvailable(status.enabled))
+      .catch(() => setAiState('unavailable'))
+  }, [])
+
   useEffect(() => {
     if (!id || !schema || !table) return
+    setInsights(null)
+    setAiState('idle')
     runProfile()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, schema, table])
@@ -56,6 +76,23 @@ export default function DatasetProfilePage() {
       setQualityState('success')
     } catch (e:any) {
       setQualityState('error')
+    }
+  }
+
+  async function runInsights() {
+    setAiState('running')
+    setInsights(null)
+    try {
+      const res = await fetch(`/api/v1/sources/${id}/insights`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schema, table })
+      })
+      if (res.status === 503) { setAiAvailable(false); setAiState('unavailable'); return }
+      if (!res.ok) throw new Error('Insights failed')
+      setInsights(await res.json())
+      setAiState('success')
+    } catch {
+      setAiState('error')
     }
   }
 
@@ -165,6 +202,45 @@ export default function DatasetProfilePage() {
               </div>
             )}
           </div>
+        <section className="mt-6 border-t pt-4" aria-label="AI Insights">
+          <h2 className="font-medium">AI Insights</h2>
+          <p className="text-sm text-gray-600">Optional interpretation of metadata and quality results. Recommendations do not change your checks or scores.</p>
+          {(aiAvailable === false || aiState === 'unavailable') && (
+            <p className="mt-2">AI Insights are optional and currently unavailable or not configured. Profiling and Quality remain fully available.</p>
+          )}
+          {aiAvailable === null && aiState !== 'unavailable' && <p className="mt-2 text-sm">Checking AI availability...</p>}
+          {aiAvailable === true && aiState !== 'unavailable' && (
+            <button onClick={runInsights} disabled={aiState === 'running'} className="mt-3 px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">Generate AI Insights</button>
+          )}
+          {aiState === 'running' && <p className="mt-2" role="status">Generating insights...</p>}
+          {aiState === 'error' && <p className="mt-2 text-red-600" role="alert">AI insights could not be generated. Try again; Profiling and Quality remain available.</p>}
+          {aiState === 'success' && insights && (
+            <div className="mt-3">
+              <h3 className="font-medium">Summary</h3>
+              <p>{insights.summary}</p>
+              <p className="mt-2">Risk Level: <span className="capitalize">{insights.risk_level}</span></p>
+              <h3 className="mt-4 font-medium">Key Findings</h3>
+              {insights.findings.length === 0 && <p>No key findings returned.</p>}
+              {insights.findings.map((finding, index) => (
+                <div key={index} className="mt-2 p-3 border rounded">
+                  <div className="font-medium">{finding.title} · {finding.severity}{finding.column ? ` · ${finding.column}` : ''}</div>
+                  <p>{finding.description}</p>
+                </div>
+              ))}
+              <h3 className="mt-4 font-medium">Suggested Checks</h3>
+              <p className="text-sm">Suggestion only. Nothing is applied or saved automatically.</p>
+              {insights.suggested_checks.length === 0 && <p>No additional checks suggested.</p>}
+              {insights.suggested_checks.map((check, index) => (
+                <div key={index} className="mt-2 p-3 border rounded">
+                  <div className="font-medium">{check.column} · {check.rule}</div>
+                  {check.parameters.value !== null && <p>Value: {check.parameters.value}</p>}
+                  {check.parameters.values !== null && <p>Allowed values: {check.parameters.values.join(', ')}</p>}
+                  <p>{check.reason}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </main>
   )
