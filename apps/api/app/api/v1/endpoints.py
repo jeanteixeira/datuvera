@@ -5,6 +5,8 @@ from app.db.session import SessionLocal
 from app.services.datasource_service import DataSourceService
 from app.services.connectors.postgres_connector import PostgreSQLConnector
 from fastapi import Body
+from app.profiling.engine import profile_table_from_source
+from app.profiling.models import ProfileResponse
 
 router = APIRouter()
 
@@ -39,14 +41,15 @@ def test_connection(payload: DataSourceCreate = Body(...)):
 def create_source(payload: DataSourceCreate, db=Depends(get_db)):
     svc = DataSourceService(db)
     src = svc.create(payload.dict())
-    return DataSourceRead.from_orm(src)
+    # Use Pydantic v2 model_validate with from_attributes=True
+    return DataSourceRead.model_validate(src)
 
 
 @router.get("/sources")
 def list_sources(db=Depends(get_db)):
     svc = DataSourceService(db)
     items = svc.list()
-    return [DataSourceRead.from_orm(i) for i in items]
+    return [DataSourceRead.model_validate(i) for i in items]
 
 
 @router.get("/sources/{source_id}")
@@ -55,7 +58,7 @@ def get_source(source_id: int, db=Depends(get_db)):
     src = svc.get(source_id)
     if not src:
         raise HTTPException(status_code=404, detail="Not found")
-    return DataSourceRead.from_orm(src)
+    return DataSourceRead.model_validate(src)
 
 
 @router.post("/sources/{source_id}/test")
@@ -97,3 +100,23 @@ def list_tables(source_id: int, schema: str, db=Depends(get_db)):
         return tables
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to list tables")
+
+
+
+@router.post("/sources/{source_id}/profile", response_model=ProfileResponse)
+def run_profile(source_id: int, payload: dict = Body(...), db=Depends(get_db)):
+    svc = DataSourceService(db)
+    src = svc.get(source_id)
+    if not src:
+        raise HTTPException(status_code=404, detail="Not found")
+    schema = payload.get("schema")
+    table = payload.get("table")
+    if not schema or not table:
+        raise HTTPException(status_code=400, detail="schema and table are required")
+    try:
+        res = profile_table_from_source(src, schema, table)
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to profile table")

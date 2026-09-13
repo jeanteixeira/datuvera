@@ -40,7 +40,10 @@ export default function SourceDetail() {
           <h3 className="font-medium">Tables</h3>
           <ul className="mt-2">
             {tables.map(t => (
-              <li key={t.name} className="py-1">{t.name}</li>
+              <li key={t.name} className="py-1 flex items-center justify-between">
+                <span>{t.name}</span>
+                <a href={`/sources/${id}/datasets/${selectedSchema}/${t.name}`} className="text-sm text-blue-600">Run Profile</a>
+              </li>
             ))}
           </ul>
         </div>

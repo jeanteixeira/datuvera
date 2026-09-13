@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
+from datetime import datetime
 
 
 class DataSourceCreate(BaseModel):
@@ -20,8 +21,7 @@ class DataSourceRead(BaseModel):
     port: int
     database: str
     username: str
-    created_at: Optional[str]
-    updated_at: Optional[str]
-
-    class Config:
-        orm_mode = True
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+    # Pydantic v2: enable from_attributes to allow model_validate on ORM objects
+    model_config = ConfigDict(from_attributes=True)

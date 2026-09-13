@@ -2,7 +2,12 @@
 CREATE TABLE IF NOT EXISTS customers (
   id serial PRIMARY KEY,
   name text NOT NULL,
-  email text
+  email text,
+  state text,
+  birth_date date,
+  is_active boolean,
+  lifetime_value numeric,
+  created_at timestamp
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -18,12 +23,22 @@ CREATE TABLE IF NOT EXISTS orders (
   qty integer DEFAULT 1
 );
 
-INSERT INTO customers (name, email)
-SELECT 'Customer ' || g, 'customer' || g || '@example.com' FROM generate_series(1,20) g;
+-- deterministic customers: 500 rows
+INSERT INTO customers (name, email, state, birth_date, is_active, lifetime_value, created_at)
+SELECT
+  'Customer ' || g,
+  'customer' || g || '@example.com',
+  (ARRAY['AL','SP','PE','BA','RJ'])[((g % 5) + 1)],
+  (DATE '1970-01-01' + (g % 20000) * INTERVAL '1 day'),
+  (CASE WHEN (g % 4) = 0 THEN true ELSE false END),
+  (g * 1.23),
+  (now() - (g % 365) * INTERVAL '1 day')
+FROM generate_series(1,500) g;
 
 INSERT INTO products (name, price)
 SELECT 'Product ' || g, (g * 1.5) FROM generate_series(1,10) g;
 
 -- Ensure product_id/customer_id within valid ranges
+-- deterministic orders
 INSERT INTO orders (customer_id, product_id, qty)
-SELECT (floor(random() * 20)::int) + 1, (floor(random() * 10)::int) + 1, (floor(random() * 5)::int) + 1 FROM generate_series(1,100) g;
+SELECT ((g - 1) % 500) + 1, ((g - 1) % 10) + 1, ((g - 1) % 5) + 1 FROM generate_series(1,1000) g;

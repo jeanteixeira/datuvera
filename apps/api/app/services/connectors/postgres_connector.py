@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List, Dict, Any
 
@@ -13,13 +13,14 @@ class PostgreSQLConnector:
         self.connect_timeout = connect_timeout
 
     def _build_url(self) -> str:
-        return f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
+        # Ensure SQLAlchemy uses the psycopg (v3) driver instead of trying psycopg2
+        return f"postgresql+psycopg://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
 
     def test_connection(self) -> Dict[str, Any]:
         try:
             engine = create_engine(self._build_url(), connect_args={"connect_timeout": self.connect_timeout})
             with engine.connect() as conn:
-                conn.execute("SELECT 1")
+                conn.execute(text("SELECT 1"))
             return {"success": True, "message": "Connection successful"}
         except SQLAlchemyError as e:
             return {"success": False, "message": str(e)}
