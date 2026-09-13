@@ -27,11 +27,13 @@ CREATE TABLE IF NOT EXISTS orders (
 INSERT INTO customers (name, email, state, birth_date, is_active, lifetime_value, created_at)
 SELECT
   'Customer ' || g,
-  'customer' || g || '@example.com',
-  (ARRAY['AL','SP','PE','BA','RJ'])[((g % 5) + 1)],
+  -- deterministic: introduce NULLs (~3%) and some invalid emails (~2%)
+  (CASE WHEN (g % 33) = 0 THEN NULL WHEN (g % 50) = 0 THEN 'invalid-email' ELSE ('customer' || g || '@example.com') END),
+  (CASE WHEN (g % 64) = 0 THEN 'XX' WHEN (g % 127) = 0 THEN 'ZZ' ELSE (ARRAY['AL','SP','PE','BA','RJ'])[((g % 5) + 1)] END),
   (DATE '1970-01-01' + (g % 20000) * INTERVAL '1 day'),
   (CASE WHEN (g % 4) = 0 THEN true ELSE false END),
-  (g * 1.23),
+  -- lifetime_value: some NULLs deterministically (~2.5%)
+  (CASE WHEN (g % 40) = 0 THEN NULL ELSE (g * 1.23) END),
   (now() - (g % 365) * INTERVAL '1 day')
 FROM generate_series(1,500) g;
 

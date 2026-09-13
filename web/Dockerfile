@@ -11,6 +11,8 @@ RUN if [ ! -f package-lock.json ]; then echo "package-lock.json missing; abortin
 RUN npm ci
 
 FROM node:20-alpine AS builder
+ARG API_URL=http://datuvera-api:8000
+ENV API_URL=${API_URL}
 WORKDIR /usr/src/app
 # Copy node_modules from deps stage to speed up install
 COPY --from=deps /usr/src/app/node_modules ./node_modules

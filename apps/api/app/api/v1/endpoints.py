@@ -7,6 +7,8 @@ from app.services.connectors.postgres_connector import PostgreSQLConnector
 from fastapi import Body
 from app.profiling.engine import profile_table_from_source
 from app.profiling.models import ProfileResponse
+from app.quality.engine import run_quality
+from app.services.connectors.postgres_connector import PostgreSQLConnector as Connector
 
 router = APIRouter()
 
@@ -120,3 +122,21 @@ def run_profile(source_id: int, payload: dict = Body(...), db=Depends(get_db)):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to profile table")
+
+
+@router.post("/sources/{source_id}/quality")
+def run_quality_endpoint(source_id: int, payload: dict = Body(...), db=Depends(get_db)):
+    svc = DataSourceService(db)
+    src = svc.get(source_id)
+    if not src:
+        raise HTTPException(status_code=404, detail="Not found")
+    schema = payload.get("schema")
+    table = payload.get("table")
+    if not schema or not table:
+        raise HTTPException(status_code=400, detail="schema and table are required")
+    try:
+        connector = Connector(src.host, src.port, src.database, src.username, src.password)
+        res = run_quality(src, schema, table, connector)
+        return res.dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to run quality")

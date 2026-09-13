@@ -1,14 +1,14 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, URL
 from datetime import datetime
 from app.profiling.models import DatasetProfile, ColumnProfile, ColumnTopValue
 
 
 class PostgresProfiler:
-    def __init__(self, url: str, connect_args: Optional[dict] = None):
+    def __init__(self, url: Union[str, URL], connect_args: Optional[dict] = None):
         # ensure we use the psycopg (psycopg3) driver if available
-        if url.startswith("postgresql://"):
+        if isinstance(url, str) and url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+psycopg://", 1)
         self.engine: Engine = create_engine(url, connect_args=connect_args or {})
         self.inspector = inspect(self.engine)

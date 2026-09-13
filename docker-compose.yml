@@ -39,6 +39,8 @@ services:
   datuvera-web:
     build:
       context: ./web
+      args:
+        API_URL: ${API_URL:-http://datuvera-api:8000}
     ports:
       - "3001:3000"
     env_file: .env

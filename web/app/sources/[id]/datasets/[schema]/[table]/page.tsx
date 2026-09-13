@@ -7,6 +7,8 @@ export default function DatasetProfilePage() {
   const router = useRouter()
   const { id, schema, table } = params || {}
   const [state, setState] = useState<'idle'|'running'|'success'|'error'>('idle')
+  const [qualityState, setQualityState] = useState<'idle'|'running'|'success'|'error'>('idle')
+  const [quality, setQuality] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -37,6 +39,23 @@ export default function DatasetProfilePage() {
     } catch (e:any) {
       setErrorMsg(e?.message || String(e))
       setState('error')
+    }
+  }
+
+  async function runQuality() {
+    setQualityState('running')
+    try {
+      const res = await fetch(`/api/v1/sources/${id}/quality`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schema, table })
+      })
+      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      setQuality(data)
+      setQualityState('success')
+    } catch (e:any) {
+      setQualityState('error')
     }
   }
 
@@ -107,9 +126,44 @@ export default function DatasetProfilePage() {
 
           <div className="mt-4">
             <button onClick={runProfile} className="px-3 py-1 bg-blue-600 text-white rounded">Run again</button>
+             <button onClick={runQuality} className="ml-2 px-3 py-1 bg-green-600 text-white rounded">Run Quality Checks</button>
             <button onClick={()=>router.back()} className="ml-2 px-3 py-1 border rounded">Back</button>
           </div>
         </div>
+
+          <div className="mt-6">
+            <h3 className="font-medium">Data Quality</h3>
+            {qualityState === 'idle' && <div className="text-sm text-gray-600">Run quality checks to evaluate dataset.</div>}
+            {qualityState === 'running' && <div>Running quality checks...</div>}
+            {qualityState === 'error' && <div className="text-red-600">Failed to run quality checks.</div>}
+            {qualityState === 'success' && quality && (
+              <div className="mt-2">
+                <div className="text-2xl font-semibold">{quality.score} / 100</div>
+                <div className="mt-2 grid grid-cols-3 gap-4">
+                  <div className="p-3 border rounded"><div className="font-medium">Completeness</div><div className="text-lg">{quality.dimensions.completeness ?? 'N/A'}</div></div>
+                  <div className="p-3 border rounded"><div className="font-medium">Uniqueness</div><div className="text-lg">{quality.dimensions.uniqueness ?? 'N/A'}</div></div>
+                  <div className="p-3 border rounded"><div className="font-medium">Validity</div><div className="text-lg">{quality.dimensions.validity ?? 'N/A'}</div></div>
+                </div>
+                <div className="mt-4">
+                  <h4 className="font-medium">Checks</h4>
+                  <ul className="mt-2">
+                    {quality.checks.map((c:any,i:number)=>(
+                      <li key={i} className="py-2 border-b">
+                        <div>{c.status === 'passed' ? '✓' : c.status === 'warning' ? '⚠' : '✕'} {c.columns?.join(', ') || c.column} — {c.rule}</div>
+                        <div className="text-sm">Status: {c.status} · Score: {c.score.toFixed(2)}/100</div>
+                        {c.status !== 'passed' && (
+                          <div className="mt-1 text-sm">
+                            <div>{c.failed_count} affected rows · {c.failed_percentage.toFixed(2)}% of rows affected</div>
+                            {c.message && <div>{c.message}</div>}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
       </div>
     </main>
   )
