@@ -1,0 +1,18 @@
+[project]
+name = "datuvera"
+version = "0.1.0"
+description = "Open-source data profiling and quality platform for modern data stacks, enhanced with AI."
+readme = "README.md"
+requires-python = ">=3.12"
+
+[tool.poetry.dependencies]
+python = ">=3.12"
+fastapi = "^0.95.0"
+uvicorn = "^0.22.0"
+sqlalchemy = "^2.0"
+pydantic = "^2.5"
+psycopg[binary] = "^3.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0"
+httpx = "^0.24"

@@ -1,0 +1,50 @@
+services:
+  datuvera-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-datuvera}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datuvera}
+      POSTGRES_DB: ${POSTGRES_DB:-datuvera}
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-datuvera}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  datuvera-api:
+    build:
+      context: ./apps/api
+    env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - API_HOST=${API_HOST}
+      - API_PORT=${API_PORT}
+      - APP_ENV=${APP_ENV}
+    ports:
+      - "8000:8000"
+    depends_on:
+      datuvera-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys,urllib.request as u; u.urlopen('http://127.0.0.1:8000/health', timeout=2); sys.exit(0)\"" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  datuvera-web:
+    build:
+      context: ./web
+    ports:
+      - "3001:3000"
+    env_file: .env
+    depends_on:
+      datuvera-api:
+        condition: service_healthy
+
+networks:
+  default:
+    name: datuvera_default
