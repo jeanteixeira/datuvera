@@ -17,15 +17,16 @@ export default function SourcesPage() {
       <div className="max-w-3xl mx-auto">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-semibold">Data Sources</h1>
-          <Link href="/sources/add" className="text-sm text-blue-600">Add data source</Link>
+          <Link href="/sources/add" className="text-sm text-blue-600">Add Data Source</Link>
         </div>
 
+        <p className="mt-3 text-sm">New here? Add a source and choose Use demo database to explore profiling and quality checks.</p>
         <ul className="mt-4 space-y-3">
           {sources.map((s: any) => (
             <li key={s.id} className="p-4 bg-white rounded shadow">
               <Link href={`/sources/${s.id}`} className="block">
                 <div className="font-medium">{s.name}</div>
-                <div className="text-sm text-gray-500">{s.type} — {s.host}:{s.port}</div>
+                <div className="text-sm text-gray-500">{s.type} — {s.host}:{s.port} / {s.database}</div>
               </Link>
             </li>
           ))}

@@ -6,6 +6,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datuvera}
       POSTGRES_DB: ${POSTGRES_DB:-datuvera}
     volumes:
+      - datuvera_db_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
@@ -55,6 +56,7 @@ services:
       POSTGRES_PASSWORD: demo
       POSTGRES_DB: demo
     volumes:
+      - datuvera_demo_db_data:/var/lib/postgresql/data
       - ./docker/postgres/demo/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5433:5432"
@@ -67,3 +69,11 @@ services:
 networks:
   default:
     name: datuvera_default
+
+volumes:
+  datuvera_db_data:
+    name: ${DATUVERA_DB_VOLUME:-datuvera_db_data}
+    external: ${DATUVERA_EXTERNAL_VOLUMES:-false}
+  datuvera_demo_db_data:
+    name: ${DATUVERA_DEMO_DB_VOLUME:-datuvera_demo_db_data}
+    external: ${DATUVERA_EXTERNAL_VOLUMES:-false}

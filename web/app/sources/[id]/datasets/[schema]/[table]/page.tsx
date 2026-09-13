@@ -76,7 +76,7 @@ export default function DatasetProfilePage() {
   return (
     <main className="p-6">
       <div className="max-w-4xl mx-auto bg-white p-6 rounded shadow">
-        <h2 className="text-xl font-semibold">{ds.table}</h2>
+        <h1 className="text-xl font-semibold">Dataset Overview: {ds.table}</h1>
         <div className="text-sm text-gray-600">{ds.schema}.{ds.table} — PostgreSQL</div>
         <div className="mt-3">
           <span className="mr-4">{ds.row_count} rows</span>
@@ -86,6 +86,7 @@ export default function DatasetProfilePage() {
         </div>
 
         <div className="mt-6">
+          <h2 className="font-medium mb-2">Column Profiles</h2>
           <table className="w-full table-auto border-collapse">
             <thead>
               <tr className="text-left border-b"><th className="py-2">Column</th><th>Type</th><th>Nulls</th><th>Distinct</th><th>Min</th><th>Max</th><th>Extras</th></tr>
@@ -138,14 +139,14 @@ export default function DatasetProfilePage() {
             {qualityState === 'error' && <div className="text-red-600">Failed to run quality checks.</div>}
             {qualityState === 'success' && quality && (
               <div className="mt-2">
-                <div className="text-2xl font-semibold">{quality.score} / 100</div>
+                <div className="text-2xl font-semibold">Overall Score: {quality.score} / 100</div>
                 <div className="mt-2 grid grid-cols-3 gap-4">
                   <div className="p-3 border rounded"><div className="font-medium">Completeness</div><div className="text-lg">{quality.dimensions.completeness ?? 'N/A'}</div></div>
                   <div className="p-3 border rounded"><div className="font-medium">Uniqueness</div><div className="text-lg">{quality.dimensions.uniqueness ?? 'N/A'}</div></div>
                   <div className="p-3 border rounded"><div className="font-medium">Validity</div><div className="text-lg">{quality.dimensions.validity ?? 'N/A'}</div></div>
                 </div>
                 <div className="mt-4">
-                  <h4 className="font-medium">Checks</h4>
+                  <h4 className="font-medium">Checks / Issues</h4>
                   <ul className="mt-2">
                     {quality.checks.map((c:any,i:number)=>(
                       <li key={i} className="py-2 border-b">

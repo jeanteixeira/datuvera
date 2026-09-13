@@ -1,51 +1,34 @@
-#!/usr/bin/env make
+DOCKER_COMPOSE = docker compose
+.DEFAULT_GOAL := help
 
-.PHONY: reset-demo
-reset-demo:
-	@echo "Resetting only the demo Postgres database (datuvera-demo-db)"
-	@echo "Stopping demo container if running..."
-	-docker compose stop datuvera-demo-db
-	@echo "Finding demo container ID (previous instance)..."
-	CID=$(shell docker compose ps -q datuvera-demo-db) || true
-	@if [ -n "$(CID)" ]; then \
-	  echo "Removing demo container..."; \
-	  docker rm -f $(CID); \
-	fi
-	@echo "Discovering anonymous volume used by demo DB (mounted at /var/lib/postgresql/data)..."
-	VOL=$(shell docker volume ls -q --filter label=com.docker.compose.service=datuvera-demo-db | head -n1)
-	@if [ -n "$(VOL)" ]; then \
-	  echo "Removing volume $(VOL)"; \
-	  docker volume rm -f $(VOL); \
-	else \
-	  echo "No named compose volume found; attempting to detect unnamed volume via inspect..."; \
-	  OLD_CID=$$(docker ps -a -q --filter name=datuvera-datuvera-demo-db); \
-	  if [ -n "$$OLD_CID" ]; then \
-	    VNAME=$$(docker inspect -f '{{ range .Mounts }}{{ if eq .Destination "/var/lib/postgresql/data" }}{{ .Name }}{{ end }}{{ end }}' $$OLD_CID); \
-	    if [ -n "$$VNAME" ]; then \
-	      echo "Removing discovered volume $$VNAME"; docker volume rm -f $$VNAME; fi; \
-	  fi; \
-	fi
-	@echo "Starting demo DB (will run init scripts)..."
-	 docker compose up -d datuvera-demo-db
-	@echo "Demo DB reset complete. Use 'docker compose logs -f datuvera-demo-db' to follow init output."
-DOCKER_COMPOSE=docker compose
+.PHONY: help up down build logs test reset-demo shell
+help:
+	@echo "make up          Build and start the local environment"
+	@echo "make down        Stop the environment; keep database volumes"
+	@echo "make build       Build API and web images"
+	@echo "make logs        Follow API, web and database logs"
+	@echo "make test        Run the backend test suite"
+	@echo "make reset-demo  Replace only the demo database's public schema and seed"
+	@echo "make shell       Open a shell in the running API container"
 
-.PHONY: up down build logs test shell
 up:
-	$(DOCKER_COMPOSE) up --build -d
+	$(DOCKER_COMPOSE) up --build -d --wait
 
 down:
 	$(DOCKER_COMPOSE) down
 
 build:
-	$(DOCKER_COMPOSE) build --pull
+	$(DOCKER_COMPOSE) build datuvera-api datuvera-web
 
 logs:
-	$(DOCKER_COMPOSE) logs -f --tail=200
+	$(DOCKER_COMPOSE) logs -f --tail=100 datuvera-api datuvera-web datuvera-db datuvera-demo-db
 
 test:
-	@echo "Running backend tests inside Docker..."
-	$(DOCKER_COMPOSE) run --rm datuvera-api pytest -q
+	$(DOCKER_COMPOSE) up -d --wait datuvera-db datuvera-demo-db
+	$(DOCKER_COMPOSE) run --build --rm datuvera-api sh -c "alembic upgrade head && pytest -q"
+
+reset-demo:
+	sh scripts/reset-demo.sh
 
 shell:
 	$(DOCKER_COMPOSE) exec datuvera-api /bin/sh
