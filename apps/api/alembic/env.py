@@ -19,6 +19,7 @@ except Exception:
 from app.db.base import Base
 from app.models.datasource import DataSource
 from app.models.quality_rule import DatasetQualityRule
+from app.models.quality_run import QualityRun
 target_metadata = Base.metadata
 
 

@@ -9,3 +9,6 @@ router.include_router(endpoints.router)
 
 from .quality_rules import router as quality_rules_router
 router.include_router(quality_rules_router)
+
+from .quality_runs import router as quality_runs_router
+router.include_router(quality_runs_router)

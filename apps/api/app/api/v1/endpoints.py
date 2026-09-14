@@ -1,4 +1,5 @@
 from app.services.quality_rule_service import QualityRuleService
+from app.services.quality_run_service import QualityRunService
 from app.ai.config import get_ai_provider
 from app.ai.models import AIInsightRequest, AIInsightResult
 from app.ai.engine import generate_insights
@@ -142,7 +143,8 @@ def run_quality_endpoint(source_id: int, payload: dict = Body(...), db=Depends(g
     try:
         connector = Connector(src.host, src.port, src.database, src.username, src.password)
         res = run_quality(src, schema, table, connector, QualityRuleService(db).effective(source_id, schema, table))
-        return res.dict()
+        QualityRunService(db).persist(source_id, schema, table, res)
+        return res.model_dump(mode="json")
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to run quality")
 

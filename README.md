@@ -18,6 +18,7 @@ Datuvera helps data teams answer these questions through reproducible statistics
 - Deterministic data quality checks and an explainable Quality Score.
 - Web interface, REST API and an included Docker Compose demo.
 - Configurable Quality Rules: create, edit, enable/disable and remove dataset rules.
+- Quality Run History: immutable snapshots of each successful manual quality execution.
 - Optional AI Insights: summary, risk, findings and suggested checks through an OpenAI provider.
 
 ## Demo
@@ -239,4 +240,8 @@ Small, focused contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ### Product workspace
 
-The application opens on Overview with real source and configured-rule counts. Use Data Sources to connect PostgreSQL or load the demo preset, then select a schema and table. Dataset tabs organize Overview, Columns, Quality (rules and checks), and optional AI Insights. Profile and quality runs are explicit actions; results remain in the current dataset workspace and run history is not stored. Datasets, Quality and AI Insights navigation pages help you choose a source without scanning every connected database.
+The application opens on Overview with real source and configured-rule counts. Use Data Sources to connect PostgreSQL or load the demo preset, then select a schema and table. Dataset tabs organize Overview, Columns, Quality (rules and checks), and optional AI Insights. Profile and quality runs are explicit actions; results remain in the current dataset workspace and quality runs are persisted as immutable snapshots. Datasets, Quality and AI Insights navigation pages help you choose a source without scanning every connected database.
+
+### Quality Run History
+
+Every successful manual Quality execution persists its scores and checks in the internal PostgreSQL database before returning the existing QualityResult response. Snapshots remain unchanged when rules or demo data change. The Quality tab lists recent runs and opens historical checks inline. GET `/api/v1/sources/{id}/quality-runs?schema=public&table=customers&limit=20&offset=0` lists summaries (maximum limit 100); `/{run_id}` and `/latest?schema=public&table=customers` return complete snapshots. History is a foundation for future trends; comparison, charts and scheduling are not available. AI Insights still analyzes the current result and does not create quality runs.

@@ -4,7 +4,7 @@ import SourceList,{useSources} from './SourceList'
 import {PageHeader,Card,Badge,ActionLink} from '../ui'
 export default function ExploreSources({kind}:{kind:'datasets'|'quality'|'ai'}){
  const {sources,state,load}=useSources()
- const text={datasets:['Datasets','Select a data source to explore schemas and tables.','Discovery on demand','Datasets are discovered from each source. Open a connection to choose a schema and dataset.'],quality:['Quality','Quality is evaluated per dataset.','Explainable quality','Select a dataset to configure rules and run quality checks. Results are generated on demand; quality history is not stored.'],ai:['AI Insights','AI Insights are generated per dataset.','Optional analysis','Use AI to interpret profiling and quality results. Suggestions remain recommendations and never change your configured rules.']}[kind]
+ const text={datasets:['Datasets','Select a data source to explore schemas and tables.','Discovery on demand','Datasets are discovered from each source. Open a connection to choose a schema and dataset.'],quality:['Quality','Quality is evaluated per dataset.','Explainable quality','Select a dataset to configure rules and run quality checks. Results are generated on demand; each quality run is saved as an immutable snapshot.'],ai:['AI Insights','AI Insights are generated per dataset.','Optional analysis','Use AI to interpret profiling and quality results. Suggestions remain recommendations and never change your configured rules.']}[kind]
  const [ai,setAi]=useState<boolean|null>(null)
  const [failed,setFailed]=useState(false)
  useEffect(()=>{if(kind==='ai')fetch('/api/v1/ai/status').then(r=>{if(!r.ok)throw Error();return r.json()}).then(s=>setAi(s.enabled)).catch(()=>setFailed(true))},[kind])

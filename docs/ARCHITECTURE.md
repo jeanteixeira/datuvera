@@ -39,3 +39,17 @@ DatasetQualityRule stores source_id, schema_name, table_name, column_name, rule_
 Quality and Insights load enabled rules via QualityRuleService. The engine merges them with existing per-column completeness and PK/UNIQUE checks, deduplicating by type/column tuple and validity parameters. Configured single-column UNIQUE uses normal PostgreSQL NULL semantics; automatic composite checks are preserved. Demo configuration is created explicitly by the source form, not the engine or migration. Resetting the demo public schema does not touch internal rule records.
 
 AI context remains an allowlist of result metadata and aggregated issues; configured parameters are not sent to the provider. Suggestions are not persisted or executed.
+
+## Quality run persistence
+
+Manual Quality requests calculate QualityResult in the independent deterministic engine, then QualityRunService commits an immutable snapshot before the API returns the unchanged result. Failed calculations create no run; database commit failures return a safe error and roll back. QualityRun stores scores (nullable dimensions), the existing checks JSON structure and a timezone-aware creation timestamp, associated with source/schema/table. Source deletion cascades; demo reset leaves internal rules and history intact. Dataset history uses indexed database ordering and LIMIT/OFFSET. AI Insights continues using a freshly calculated current QualityResult without creating or reading historical runs.
+
+```mermaid
+flowchart TD
+    Dataset --> ProfilingEngine
+    ProfilingEngine --> QualityEngine
+    QualityEngine --> QualityResult
+    QualityResult --> QualityRunPersistence
+    QualityRunPersistence --> APIResponse
+    QualityResult --> OptionalAIInsights
+```
