@@ -53,3 +53,7 @@ flowchart TD
     QualityRunPersistence --> APIResponse
     QualityResult --> OptionalAIInsights
 ```
+
+## History and trends
+
+QualityRun summaries → existing paginated History Query → frontend comparison and trends → Web UI. No migration or trend engine is required. Summary queries defer checks JSONB; full snapshots are fetched only when opened. The frontend compares latest and previous scores in absolute points, preserves nullable dimensions and reverses newest-first summaries for chronological visualization. History does not classify incidents or infer causes.
