@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
+import {Badge,Button,Card,DataTable,EmptyState,ErrorState,LoadingState,SectionHeader,ruleLabel} from '../../components/ui'
 
 type Rule = { id: number; column: string; rule: string; parameters: { value?: number; values?: (string | number | boolean)[] }; is_enabled: boolean }
 type Column = { name: string; data_type: string }
@@ -19,7 +20,7 @@ export default function QualityRules({ sourceId, schema, table, columns, onChang
   const [value, setValue] = useState('')
 
   async function load() {
-    setLoading(true)
+    setLoading(true); setError('')
     try {
       const res = await fetch(`${root}?${new URLSearchParams({ schema, table })}`)
       if (!res.ok) throw new Error('Could not load quality rules.')
@@ -72,54 +73,36 @@ export default function QualityRules({ sourceId, schema, table, columns, onChang
     return {}
   }
 
+  const descriptions:Record<string,string> = {not_null:'Checks whether values are missing.',unique:'Checks whether non-null values are unique.',email_format:'Checks whether non-null values resemble an email address.',allowed_values:'Checks whether non-null values belong to a defined list.',min_value:'Checks whether non-null values meet a minimum numeric bound.',max_value:'Checks whether non-null values stay within a maximum numeric bound.'}
+  function add(){setEditing(null);setColumn(columns[0]?.name||'');setType('not_null');setValue('');setShowForm(true);setError('')}
   return (
-    <section className="mt-6 border-t pt-4" aria-label="Quality Rules">
-      <h2 className="font-medium">Quality Rules</h2>
-      <p className="text-sm text-gray-600">Configured rules run alongside automatic completeness and database constraint checks. AI suggestions are separate.</p>
-      {loading && <p role="status">Loading rules...</p>}
-      {error && <p className="mt-2 text-red-600" role="alert">{error} <button onClick={load}>Reload</button></p>}
-      {!loading && rules.length === 0 && <p className="mt-2 text-sm">No configured rules yet.</p>}
-      <ul>
-        {rules.map(rule => (
-          <li key={rule.id} className="mt-2 p-3 border rounded">
-            <div>{rule.column} · {rule.rule} · {rule.is_enabled ? 'Enabled' : 'Disabled'}</div>
-            {rule.parameters.value !== undefined && <p>Value: {rule.parameters.value}</p>}
-            {rule.parameters.values && <p>Allowed values: {rule.parameters.values.map(String).join(', ')}</p>}
-            <button disabled={busy} onClick={() => mutate('PATCH', rule.id, { is_enabled: !rule.is_enabled })} className="mt-2 mr-3 underline">{rule.is_enabled ? 'Disable' : 'Enable'}</button>
-            {(rule.rule === 'allowed_values' || rule.rule === 'min_value' || rule.rule === 'max_value') && (
-              <button disabled={busy} className="mr-3 underline" onClick={() => {
-                setColumn(rule.column); setType(rule.rule); setValue(rule.parameters.values?.map(String).join(', ') ?? String(rule.parameters.value ?? ''))
-                setEditing(rule.id); setShowForm(true); setError('')
-              }}>Edit Parameters</button>
-            )}
-            <button disabled={busy} onClick={() => mutate('DELETE', rule.id)} className="underline">Delete</button>
-          </li>
-        ))}
-      </ul>
-      <button disabled={busy} className="mt-3 px-3 py-1 border rounded" onClick={() => {
-        setEditing(null); setColumn(columns[0]?.name || ''); setType('not_null'); setValue(''); setShowForm(true); setError('')
-      }}>Add Rule</button>
-      {showForm && (
-        <form className="mt-3 flex flex-col gap-2" onSubmit={event => {
-          event.preventDefault()
-          try {
-            const params = parameters()
-            mutate(editing === null ? 'POST' : 'PATCH', editing ?? undefined,
-              editing === null ? { schema, table, column, rule: type, parameters: params } : { parameters: params })
-          } catch (err) { setError(err instanceof Error ? err.message : 'Invalid parameters') }
-        }}>
-          <label>Column <select value={column} disabled={editing !== null || busy} onChange={event => { setColumn(event.target.value); setType('not_null'); setValue('') }} className="border rounded p-1">
-            {columns.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-          </select></label>
-          <label>Rule Type <select value={type} disabled={editing !== null || busy} onChange={event => { setType(event.target.value); setValue('') }} className="border rounded p-1">
-            {(editing === null ? compatible : [type]).map(rule => <option key={rule} value={rule}>{rule}</option>)}
-          </select></label>
-          {type === 'allowed_values' && <label>Allowed values (comma separated) <input required value={value} onChange={event => setValue(event.target.value)} className="border rounded p-1" /></label>}
-          {(type === 'min_value' || type === 'max_value') && <label>Value <input type="number" step="any" required value={value} onChange={event => setValue(event.target.value)} className="border rounded p-1" /></label>}
-          <div><button disabled={busy || !column} className="px-3 py-1 bg-blue-600 text-white rounded">{busy ? 'Saving...' : 'Save Rule'}</button>
-          <button type="button" disabled={busy} onClick={() => { setShowForm(false); setEditing(null) }} className="ml-3 underline">Cancel</button></div>
-        </form>
-      )}
-    </section>
+    <Card>
+      <SectionHeader title="Quality Rules" description="Configured rules run alongside automatic completeness and database constraint checks." action={<Button disabled={busy} onClick={add}>+ Add Rule</Button>}/>
+      {loading && <LoadingState>Loading rules...</LoadingState>}
+      {error && <ErrorState retry={load}>{error}</ErrorState>}
+      {!loading && rules.length === 0 && !showForm && <EmptyState title="No configured rules" description="Automatic metadata rules will still be evaluated. Add column rules to validate your data requirements." action={<Button variant="secondary" onClick={add}>Add Rule</Button>}/>}
+      {!!rules.length && <DataTable label="Configured quality rules"><thead><tr><th>Column</th><th>Rule</th><th>Parameters</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+        {rules.map(rule => <tr key={rule.id}>
+          <td className="cell-mono cell-title">{rule.column}</td><td>{ruleLabel(rule.rule)}</td>
+          <td className="muted max-w-xs break-words">{rule.parameters.values?.map(String).join(', ') ?? rule.parameters.value ?? '—'}</td>
+          <td><Badge tone={rule.is_enabled?'enabled':'disabled'}>{rule.is_enabled?'Enabled':'Disabled'}</Badge></td>
+          <td><div className="flex items-center gap-1">
+            {(rule.rule==='allowed_values'||rule.rule==='min_value'||rule.rule==='max_value')&&<Button variant="secondary" disabled={busy} aria-label={`Edit parameters for ${rule.column} ${ruleLabel(rule.rule)}`} onClick={()=>{setColumn(rule.column);setType(rule.rule);setValue(rule.parameters.values?.map(String).join(', ')??String(rule.parameters.value??''));setEditing(rule.id);setShowForm(true);setError('')}}>Edit</Button>}
+            <Button variant="secondary" disabled={busy} aria-label={`${rule.is_enabled?'Disable':'Enable'} ${rule.column} ${ruleLabel(rule.rule)}`} onClick={()=>mutate('PATCH',rule.id,{is_enabled:!rule.is_enabled})}>{rule.is_enabled?'Disable':'Enable'}</Button>
+            <Button variant="danger" disabled={busy} aria-label={`Delete ${rule.column} ${ruleLabel(rule.rule)}`} onClick={()=>mutate('DELETE',rule.id)}>Delete</Button>
+          </div></td></tr>)}
+      </tbody></DataTable>}
+      {showForm && <form className="inline-panel" onSubmit={event=>{event.preventDefault();try{const params=parameters();mutate(editing===null?'POST':'PATCH',editing??undefined,editing===null?{schema,table,column,rule:type,parameters:params}:{parameters:params})}catch(err){setError(err instanceof Error?err.message:'Invalid parameters')}}}>
+        <SectionHeader title={editing===null?'Add quality rule':'Edit rule parameters'} description="Define a deterministic check for a dataset column."/>
+        <div className="form-grid">
+          <label className="field">Column<select value={column} disabled={editing!==null||busy} onChange={event=>{setColumn(event.target.value);setType('not_null');setValue('')}}>{columns.map(c=><option key={c.name} value={c.name}>{c.name}</option>)}</select></label>
+          <label className="field">Rule Type<select value={type} disabled={editing!==null||busy} onChange={event=>{setType(event.target.value);setValue('')}}>{(editing===null?compatible:[type]).map(rule=><option key={rule} value={rule}>{ruleLabel(rule)}</option>)}</select></label>
+          {type==='allowed_values'&&<label className="field">Allowed values (comma separated)<input disabled={busy} required value={value} placeholder={numeric?'0, 10, 20':/bool/.test(dtype)?'true, false':'AL, PE, BA'} onChange={event=>setValue(event.target.value)}/></label>}
+          {(type==='min_value'||type==='max_value')&&<label className="field">Value<input disabled={busy} type="number" step="any" required value={value} onChange={event=>setValue(event.target.value)}/></label>}
+        </div><p className="muted text-xs mt-4">{descriptions[type]}</p>
+        <div className="mt-5 flex gap-2"><Button disabled={busy||!column}>{busy?'Saving rule...':'Save Rule'}</Button><Button type="button" variant="secondary" disabled={busy} onClick={()=>{setShowForm(false);setEditing(null)}}>Cancel</Button></div>
+      </form>}
+      <p className="muted text-xs mt-4">AI suggestions are separate. Disabled rules remain saved and are excluded from configured checks.</p>
+    </Card>
   )
 }

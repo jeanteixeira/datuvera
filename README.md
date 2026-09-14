@@ -236,3 +236,7 @@ Small, focused contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
 ## License
 
 [MIT](LICENSE).
+
+### Product workspace
+
+The application opens on Overview with real source and configured-rule counts. Use Data Sources to connect PostgreSQL or load the demo preset, then select a schema and table. Dataset tabs organize Overview, Columns, Quality (rules and checks), and optional AI Insights. Profile and quality runs are explicit actions; results remain in the current dataset workspace and run history is not stored. Datasets, Quality and AI Insights navigation pages help you choose a source without scanning every connected database.

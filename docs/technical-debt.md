@@ -13,3 +13,4 @@ Known items; recording them does not imply they are part of Project Polish.
 - Dependencies are duplicated/diverge between root `pyproject.toml` and API `requirements.txt`; Docker uses the latter.
 - Web build installs missing TypeScript type dependencies and generates `tsconfig.json` inside the image; this weakens build reproducibility.
 - Backend integration tests use the local metadata database and leave source registrations/test objects; isolate their database lifecycle later.
+- Web `npm run lint` still invokes `next lint`, which is unavailable in the installed Next.js 16; configure a standalone linter in a later tooling task. Stage 08 validates TypeScript through `next build`.
